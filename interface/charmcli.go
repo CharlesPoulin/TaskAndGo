@@ -1,4 +1,4 @@
-// interface/charmcli.go
+// charmcli.go
 package main
 
 import (
@@ -18,7 +18,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Define tab indices for managing the active tab.
+// tabIndex enumerates which tab is active in the UI.
 type tabIndex int
 
 const (
@@ -26,13 +26,14 @@ const (
 	tabJobs
 )
 
-// model defines the state of the application.
+// model defines the state of the entire application (both tabs).
 type model struct {
-	// Inputs for task submission.
-	taskIDInput   textinput.Model
-	priorityInput textinput.Model
+	// We’ll keep the two text inputs in a slice for easier focus management.
+	// focusIndex indicates which input is currently "active."
+	focusIndex int
+	inputs     []textinput.Model
 
-	// GRPC client and error state.
+	// gRPC client and error state.
 	client pb.SchedulerClient
 	err    error
 
@@ -47,81 +48,132 @@ type model struct {
 	tasks []*pb.Task
 }
 
-// initialModel initializes the Bubble Tea model with input fields.
+// --- Initialization ---
+
 func initialModel(client pb.SchedulerClient) model {
+	// Prepare our text inputs: Task ID and Priority.
+	// We’ll store them in a slice so we can cycle focus with Tab.
+	m := model{
+		inputs:     make([]textinput.Model, 2),
+		focusIndex: 0,
+		client:     client,
+		activeTab:  tabSubmit,
+	}
+
+	// Task ID field.
 	ti1 := textinput.New()
 	ti1.Placeholder = "Enter Task ID"
-	ti1.Focus()
 	ti1.CharLimit = 32
 	ti1.Width = 30
+	ti1.Focus() // by default, set the first input as focused
 
+	// Priority field.
 	ti2 := textinput.New()
 	ti2.Placeholder = "Priority (low, medium, high)"
 	ti2.CharLimit = 10
 	ti2.Width = 30
 
-	return model{
-		taskIDInput:   ti1,
-		priorityInput: ti2,
-		client:        client,
-		activeTab:     tabSubmit,
-	}
+	m.inputs[0] = ti1
+	m.inputs[1] = ti2
+
+	return m
 }
 
-// Init initializes the program, starting with blinking cursors.
+// Init is the standard Bubble Tea initialization function.
 func (m model) Init() tea.Cmd {
+	// Start the cursor blinking in whichever field is focused.
 	return textinput.Blink
 }
 
-// Update handles incoming messages and updates the model accordingly.
+// --- Update ---
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
 
-		// Quit the application.
+		// Quit the entire application.
 		case "ctrl+c", "q":
 			return m, tea.Quit
 
-		// Switch tabs.
+		// Press tab to switch between the "Submit" tab and the "Jobs" tab.
+		// This frees up the Tab key for switching between input fields.
 		case "tab":
 			if m.activeTab == tabSubmit {
 				m.activeTab = tabJobs
-				// Fetch tasks when switching to Jobs tab.
+				// Fetch tasks when switching to the Jobs tab.
 				return m, fetchTasksCmd(m.client)
 			} else {
 				m.activeTab = tabSubmit
 			}
 
-		// Refresh tasks list in Jobs tab.
+		// Refresh tasks if we are in the Jobs tab.
 		case "r":
 			if m.activeTab == tabJobs {
 				return m, fetchTasksCmd(m.client)
 			}
 
-		// Handle Enter key based on active tab.
-		case "enter":
+		// Handle navigation and Enter key in the Submit tab.
+		case "shift+tab", "up", "down", "enter":
 			if m.activeTab == tabSubmit {
-				if !m.submitted {
-					// Submit the task.
-					return m, submitTaskCmd(m)
-				} else {
-					// Check the status of the submitted task.
-					return m, checkStatusCmd(m)
-				}
-			}
-		}
+				s := msg.String()
 
-	// Handle the list of tasks fetched from the server.
+				// If the user presses Enter and we have not yet submitted,
+				// check if we are on the last input or not.
+				if s == "enter" {
+					// If we are at the last input and haven't submitted yet, submit.
+					if m.focusIndex == len(m.inputs)-1 && !m.submitted {
+						return m, submitTaskCmd(m)
+					}
+
+					// If we already submitted, pressing Enter checks status again.
+					if m.focusIndex == len(m.inputs)-1 && m.submitted {
+						return m, checkStatusCmd(m)
+					}
+
+					// Otherwise, move focus to the next input if there is one.
+					m.focusIndex++
+					if m.focusIndex > len(m.inputs)-1 {
+						m.focusIndex = len(m.inputs) - 1
+					}
+				} else {
+					// Cycle focus with tab/up/down
+					if s == "shift+tab" || s == "up" {
+						m.focusIndex--
+					} else {
+						m.focusIndex++
+					}
+					if m.focusIndex < 0 {
+						m.focusIndex = 0
+					} else if m.focusIndex > len(m.inputs)-1 {
+						m.focusIndex = len(m.inputs) - 1
+					}
+				}
+
+				// Update focus states accordingly.
+				cmds = make([]tea.Cmd, len(m.inputs))
+				for i := range m.inputs {
+					if i == m.focusIndex {
+						cmds[i] = m.inputs[i].Focus()
+					} else {
+						m.inputs[i].Blur()
+					}
+				}
+				return m, tea.Batch(cmds...)
+			}
+
+		} // end switch msg.String()
+
+	// Tasks fetched from the server.
 	case listTasksMsg:
 		m.tasks = msg
 		m.err = nil
 		return m, nil
 
-	// Handle submission success/failure.
+	// Submission response (success or failure).
 	case submitTaskResponseMsg:
 		if msg.err != nil {
 			m.err = msg.err
@@ -135,7 +187,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	// Handle task status response.
+	// Task status response.
 	case taskStatusResponseMsg:
 		if msg.err != nil {
 			m.err = msg.err
@@ -148,26 +200,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	// Handle errors from any command.
+	// Error from any command.
 	case errMsg:
 		m.err = msg
 		return m, nil
 	}
 
-	// Update input fields only if on the Submit tab.
+	// If we’re on the Jobs tab, we don’t allow text editing in the inputs.
+	// But if we’re on the Submit tab, forward character input to whichever input is focused.
 	if m.activeTab == tabSubmit {
-		m.taskIDInput, cmd = m.taskIDInput.Update(msg)
-		var cmd2 tea.Cmd
-		m.priorityInput, cmd2 = m.priorityInput.Update(msg)
-		return m, tea.Batch(cmd, cmd2)
+		cmd := m.updateInputs(msg)
+		return m, cmd
 	}
 
 	return m, nil
 }
 
-// View renders the UI based on the current model state.
+// updateInputs updates whichever text input is currently focused.
+func (m *model) updateInputs(msg tea.Msg) tea.Cmd {
+	cmds := make([]tea.Cmd, len(m.inputs))
+	for i := range m.inputs {
+		// Only the focused text input will actually accept keystrokes.
+		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
+	}
+	return tea.Batch(cmds...)
+}
+
+// --- View ---
+
 func (m model) View() string {
-	// Display errors prominently.
 	if m.err != nil {
 		return fmt.Sprintf(
 			"Error: %v\n\nPress 'q' to quit or 'tab' to switch tabs.\n",
@@ -175,28 +236,34 @@ func (m model) View() string {
 		)
 	}
 
-	// Header
 	s := "=== Charm CLI with Tabs ===\n\n"
 
-	// Render based on the active tab.
 	switch m.activeTab {
 	case tabSubmit:
-		s += "[ Task Submission ] | (Press TAB to switch to Jobs)\n\n"
+		s += "[ Task Submission ] | (Press tab to switch to Jobs)\n\n"
 		if !m.submitted {
+			// If not yet submitted, show the two text inputs
 			s += "Submit a new task:\n\n"
-			s += fmt.Sprintf("Task ID: %s\n\n", m.taskIDInput.View())
-			s += fmt.Sprintf("Priority: %s\n\n", m.priorityInput.View())
-			s += "Press Enter to submit or 'q' to quit.\n"
+			s += "Task ID: " + m.inputs[0].View() + "\n\n"
+			s += "Priority: " + m.inputs[1].View() + "\n\n"
+			s += "Use Tab to move between fields. Press Enter on the second field to submit.\n"
+			s += "Press 'q' to quit.\n"
 		} else {
+			// If already submitted, show the single set of "Task Submitted" + "Current Status".
 			s += fmt.Sprintf(
-				"Task Submitted.\n\nCurrent Status: %s\n\nPress Enter to refresh status or 'q' to quit.\n",
+				"Task Submitted.\n\nCurrent Status: %s\n\n",
 				m.status,
 			)
+			s += "Press Enter on the second field to refresh status or 'q' to quit.\n"
+			// If you want to keep displaying the input fields, you can show them, but not repeated messages:
+			s += "\nTask ID: " + m.inputs[0].View() + "\n\n"
+			s += "Priority: " + m.inputs[1].View() + "\n"
 		}
 
 	case tabJobs:
-		s += "(Press TAB to switch to Submission) | [ Jobs List ]\n\n"
+		s += "(Press tab  to switch to Submission) | [ Jobs List ]\n\n"
 		s += "Press 'r' to refresh the tasks list.\n\n"
+
 		if len(m.tasks) == 0 {
 			s += "No tasks to display or still loading..."
 		} else {
@@ -206,35 +273,29 @@ func (m model) View() string {
 			}
 		}
 	}
+
 	s += "\n"
 	return s
 }
 
-//
-// Commands and Helper Functions
-//
+// --- Custom message types for asynchronous operations ---
 
-// Custom message types for asynchronous operations.
-
-// listTasksMsg carries the list of tasks fetched from the server.
 type listTasksMsg []*pb.Task
 
-// submitTaskResponseMsg carries the response from submitting a task.
 type submitTaskResponseMsg struct {
 	response *pb.SubmitTaskResponse
 	err      error
 }
 
-// taskStatusResponseMsg carries the response from checking a task's status.
 type taskStatusResponseMsg struct {
 	response *pb.TaskStatusResponse
 	err      error
 }
 
-// errMsg carries any errors from commands.
 type errMsg error
 
-// fetchTasksCmd retrieves the list of tasks from the server.
+// --- Commands ---
+
 func fetchTasksCmd(client pb.SchedulerClient) tea.Cmd {
 	return func() tea.Msg {
 		res, err := client.ListTasks(context.Background(), &pb.TaskListRequest{})
@@ -245,11 +306,10 @@ func fetchTasksCmd(client pb.SchedulerClient) tea.Cmd {
 	}
 }
 
-// submitTaskCmd submits a new task to the server.
 func submitTaskCmd(m model) tea.Cmd {
 	return func() tea.Msg {
-		taskID := m.taskIDInput.Value()
-		priority := m.priorityInput.Value()
+		taskID := m.inputs[0].Value()
+		priority := m.inputs[1].Value()
 
 		if taskID == "" {
 			return errMsg(fmt.Errorf("task ID cannot be empty"))
@@ -284,10 +344,9 @@ func submitTaskCmd(m model) tea.Cmd {
 	}
 }
 
-// checkStatusCmd checks the status of the submitted task.
 func checkStatusCmd(m model) tea.Cmd {
 	return func() tea.Msg {
-		taskID := m.taskIDInput.Value()
+		taskID := m.inputs[0].Value()
 
 		res, err := m.client.GetTaskStatus(context.Background(), &pb.TaskStatusRequest{
 			TaskId: taskID,
@@ -300,12 +359,10 @@ func checkStatusCmd(m model) tea.Cmd {
 	}
 }
 
-//
-// Main Function
-//
+// --- Main ---
 
 func main() {
-	// Establish a secure gRPC connection.
+	// Connect to gRPC server (insecure for demonstration).
 	conn, err := grpc.NewClient(
 		"localhost:50051",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -318,14 +375,11 @@ func main() {
 	// Create the Scheduler client.
 	client := pb.NewSchedulerClient(conn)
 
-	// Initialize the Bubble Tea program with the initial model.
+	// Initialize the Bubble Tea program with our model.
 	p := tea.NewProgram(initialModel(client))
 
-	// Run the program using Run() instead of the deprecated Start().
-	_, err = p.Run()
-	if err != nil {
+	if _, err := p.Run(); err != nil {
 		fmt.Println("Error running Charm CLI:", err)
 		os.Exit(1)
 	}
-
 }
