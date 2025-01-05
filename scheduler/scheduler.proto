@@ -2,11 +2,15 @@ syntax = "proto3";
 
 package scheduler;
 
+// Specifies the Go package path and the Go package name.
+option go_package = "/scheduler;scheduler";
+
 // The Task message describes a task to be scheduled.
 message Task {
   string task_id  = 1;
   string priority = 2;   // e.g., "low", "medium", "high"
   string data     = 3;   // Arbitrary data or payload
+  string status   = 4;   // e.g., "QUEUED", "RUNNING", "COMPLETED"
 }
 
 // The SubmitTaskRequest encapsulates the Task object.
@@ -16,8 +20,8 @@ message SubmitTaskRequest {
 
 // The SubmitTaskResponse returns an acknowledgment or error details.
 message SubmitTaskResponse {
-  bool success     = 1;
-  string message   = 2;
+  bool success   = 1;
+  string message = 2;
 }
 
 // Request for retrieving a task’s status.
@@ -29,11 +33,20 @@ message TaskStatusRequest {
 message TaskStatusResponse {
   bool found           = 1;   // Whether the task was found
   string currentStatus = 2;   // e.g., "QUEUED", "RUNNING", "COMPLETED"
-  string message       = 3;   // Additional info (e.g. logs)
+  string message       = 3;   // Additional info (e.g., logs)
+}
+
+// Request for listing all tasks.
+message TaskListRequest {}
+
+// Response containing a list of tasks.
+message TaskListResponse {
+  repeated Task tasks = 1;
 }
 
 // The Scheduler service describes the RPC methods for managing tasks.
 service Scheduler {
   rpc SubmitTask(SubmitTaskRequest) returns (SubmitTaskResponse);
   rpc GetTaskStatus(TaskStatusRequest) returns (TaskStatusResponse);
+  rpc ListTasks(TaskListRequest) returns (TaskListResponse);
 }
