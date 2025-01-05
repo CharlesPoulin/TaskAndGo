@@ -40,3 +40,16 @@ A lightweight, distributed task scheduler built in Go for running prioritized jo
    ```bash
    git clone https://github.com/yourusername/distributed-task-scheduler.git
    cd distributed-task-scheduler
+
+
+
+   # Usage Guide for the Distributed Task Scheduler ```
+
+## **Submit Tasks**
+You can submit tasks to the scheduler via CLI or API using a `POST` request. Replace `<scheduler-node-ip>` and `<port>` with the appropriate values for your setup.
+
+### Example Command:
+```bash
+curl -X POST http://<scheduler-node-ip>:<port>/submit-task \
+-d '{"task_id": "123", "priority": "high", "data": "task details"}'
+
