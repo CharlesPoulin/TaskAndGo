@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package scheduler;
+
+// The Task message describes a task to be scheduled.
+message Task {
+  string task_id  = 1;
+  string priority = 2;   // e.g., "low", "medium", "high"
+  string data     = 3;   // Arbitrary data or payload
+}
+
+// The SubmitTaskRequest encapsulates the Task object.
+message SubmitTaskRequest {
+  Task task = 1;
+}
+
+// The SubmitTaskResponse returns an acknowledgment or error details.
+message SubmitTaskResponse {
+  bool success     = 1;
+  string message   = 2;
+}
+
+// Request for retrieving a task’s status.
+message TaskStatusRequest {
+  string task_id = 1;
+}
+
+// TaskStatusResponse returns the status of a given task.
+message TaskStatusResponse {
+  bool found           = 1;   // Whether the task was found
+  string currentStatus = 2;   // e.g., "QUEUED", "RUNNING", "COMPLETED"
+  string message       = 3;   // Additional info (e.g. logs)
+}
+
+// The Scheduler service describes the RPC methods for managing tasks.
+service Scheduler {
+  rpc SubmitTask(SubmitTaskRequest) returns (SubmitTaskResponse);
+  rpc GetTaskStatus(TaskStatusRequest) returns (TaskStatusResponse);
+}
