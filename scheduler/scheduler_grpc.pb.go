@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Scheduler_SubmitTask_FullMethodName    = "/scheduler.Scheduler/SubmitTask"
-	Scheduler_GetTaskStatus_FullMethodName = "/scheduler.Scheduler/GetTaskStatus"
-	Scheduler_ListTasks_FullMethodName     = "/scheduler.Scheduler/ListTasks"
+	Scheduler_SubmitTask_FullMethodName       = "/scheduler.Scheduler/SubmitTask"
+	Scheduler_GetTaskStatus_FullMethodName    = "/scheduler.Scheduler/GetTaskStatus"
+	Scheduler_ListTasks_FullMethodName        = "/scheduler.Scheduler/ListTasks"
+	Scheduler_GetResourceUsage_FullMethodName = "/scheduler.Scheduler/GetResourceUsage"
 )
 
 // SchedulerClient is the client API for Scheduler service.
@@ -33,6 +34,7 @@ type SchedulerClient interface {
 	SubmitTask(ctx context.Context, in *SubmitTaskRequest, opts ...grpc.CallOption) (*SubmitTaskResponse, error)
 	GetTaskStatus(ctx context.Context, in *TaskStatusRequest, opts ...grpc.CallOption) (*TaskStatusResponse, error)
 	ListTasks(ctx context.Context, in *TaskListRequest, opts ...grpc.CallOption) (*TaskListResponse, error)
+	GetResourceUsage(ctx context.Context, in *ResourceUsageRequest, opts ...grpc.CallOption) (*ResourceUsageResponse, error)
 }
 
 type schedulerClient struct {
@@ -73,6 +75,16 @@ func (c *schedulerClient) ListTasks(ctx context.Context, in *TaskListRequest, op
 	return out, nil
 }
 
+func (c *schedulerClient) GetResourceUsage(ctx context.Context, in *ResourceUsageRequest, opts ...grpc.CallOption) (*ResourceUsageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResourceUsageResponse)
+	err := c.cc.Invoke(ctx, Scheduler_GetResourceUsage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SchedulerServer is the server API for Scheduler service.
 // All implementations must embed UnimplementedSchedulerServer
 // for forward compatibility.
@@ -82,6 +94,7 @@ type SchedulerServer interface {
 	SubmitTask(context.Context, *SubmitTaskRequest) (*SubmitTaskResponse, error)
 	GetTaskStatus(context.Context, *TaskStatusRequest) (*TaskStatusResponse, error)
 	ListTasks(context.Context, *TaskListRequest) (*TaskListResponse, error)
+	GetResourceUsage(context.Context, *ResourceUsageRequest) (*ResourceUsageResponse, error)
 	mustEmbedUnimplementedSchedulerServer()
 }
 
@@ -100,6 +113,9 @@ func (UnimplementedSchedulerServer) GetTaskStatus(context.Context, *TaskStatusRe
 }
 func (UnimplementedSchedulerServer) ListTasks(context.Context, *TaskListRequest) (*TaskListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTasks not implemented")
+}
+func (UnimplementedSchedulerServer) GetResourceUsage(context.Context, *ResourceUsageRequest) (*ResourceUsageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetResourceUsage not implemented")
 }
 func (UnimplementedSchedulerServer) mustEmbedUnimplementedSchedulerServer() {}
 func (UnimplementedSchedulerServer) testEmbeddedByValue()                   {}
@@ -176,6 +192,24 @@ func _Scheduler_ListTasks_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Scheduler_GetResourceUsage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResourceUsageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SchedulerServer).GetResourceUsage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Scheduler_GetResourceUsage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SchedulerServer).GetResourceUsage(ctx, req.(*ResourceUsageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Scheduler_ServiceDesc is the grpc.ServiceDesc for Scheduler service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -194,6 +228,10 @@ var Scheduler_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListTasks",
 			Handler:    _Scheduler_ListTasks_Handler,
+		},
+		{
+			MethodName: "GetResourceUsage",
+			Handler:    _Scheduler_GetResourceUsage_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

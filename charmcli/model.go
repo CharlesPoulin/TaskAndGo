@@ -1,3 +1,4 @@
+// charmcli/model.go
 package charmcli
 
 import (
@@ -11,6 +12,7 @@ type tabIndex int
 const (
 	tabSubmit tabIndex = iota
 	tabJobs
+	tabResource
 )
 
 // Model defines the overall state.
@@ -23,7 +25,9 @@ type Model struct {
 	submitted bool
 	status    string
 	activeTab tabIndex
+
 	tasks     []*pb.Task
+	resources []*pb.ResourceUsage
 }
 
 // InitialModel initializes the application state.

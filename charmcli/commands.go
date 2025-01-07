@@ -1,3 +1,4 @@
+// charmcli/commands.go
 package charmcli
 
 import (
@@ -15,6 +16,7 @@ func fetchTasksCmd(client pb.SchedulerClient) tea.Cmd {
 		if err != nil {
 			return errMsg(err)
 		}
+		// Use the tasks from TaskListResponse
 		return listTasksMsg(res.Tasks)
 	}
 }
@@ -43,6 +45,7 @@ func submitTaskCmd(m Model) tea.Cmd {
 			Priority: priority,
 			Data:     "Sample Data",
 			Status:   "QUEUED",
+			Progress: 0, // Initialize progress if needed
 		}
 
 		res, err := m.client.SubmitTask(context.Background(), &pb.SubmitTaskRequest{
@@ -68,6 +71,21 @@ func checkStatusCmd(m Model) tea.Cmd {
 		return taskStatusResponseMsg{
 			response: res,
 			err:      err,
+		}
+	}
+}
+
+// fetchResourceUsageCmd fetches resource usage data from the server.
+func fetchResourceUsageCmd(client pb.SchedulerClient) tea.Cmd {
+	return func() tea.Msg {
+		usageResp, err := client.GetResourceUsage(context.Background(), &pb.ResourceUsageRequest{})
+		if err != nil {
+			return errMsg(err)
+		}
+		// Return a message containing the fetched resource usages.
+		return resourceUsageMsg{
+			resources: usageResp.Usages,
+			err:       nil,
 		}
 	}
 }

@@ -1,3 +1,4 @@
+// charmcli/update.go
 package charmcli
 
 import (
@@ -8,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// Message types.
 type listTasksMsg []*pb.Task
 
 type submitTaskResponseMsg struct {
@@ -18,6 +20,11 @@ type submitTaskResponseMsg struct {
 type taskStatusResponseMsg struct {
 	response *pb.TaskStatusResponse
 	err      error
+}
+
+type resourceUsageMsg struct {
+	resources []*pb.ResourceUsage
+	err       error
 }
 
 type errMsg error
@@ -38,11 +45,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "tab":
-			if m.activeTab == tabSubmit {
+			switch m.activeTab {
+			case tabSubmit:
 				m.ResetSubmission()
 				m.activeTab = tabJobs
 				return m, fetchTasksCmd(m.client)
-			} else {
+			case tabJobs:
+				m.activeTab = tabResource
+				return m, fetchResourceUsageCmd(m.client)
+			case tabResource:
 				m.ResetSubmission()
 				m.activeTab = tabSubmit
 			}
@@ -50,6 +61,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "r":
 			if m.activeTab == tabJobs {
 				return m, fetchTasksCmd(m.client)
+			} else if m.activeTab == tabResource {
+				return m, fetchResourceUsageCmd(m.client)
 			}
 
 		case "shift+tab", "up", "down", "enter":
@@ -88,7 +101,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, tea.Batch(cmds...)
 			}
-
 		}
 
 	case listTasksMsg:
@@ -119,6 +131,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = "Task not found."
 		}
+		return m, nil
+
+	case resourceUsageMsg:
+		if msg.err != nil {
+			m.err = msg.err
+			return m, nil
+		}
+		m.resources = msg.resources
+		m.err = nil
 		return m, nil
 
 	case errMsg:

@@ -10,7 +10,8 @@ message Task {
   string task_id  = 1;
   string priority = 2;   // e.g., "low", "medium", "high"
   string data     = 3;   // Arbitrary data or payload
-  string status   = 4;   // e.g., "QUEUED", "RUNNING", "COMPLETED"
+  string status   = 4;
+  int32 progress  = 6;   // Percentage progress of the task (0-100)
 }
 
 // The SubmitTaskRequest encapsulates the Task object.
@@ -44,9 +45,25 @@ message TaskListResponse {
   repeated Task tasks = 1;
 }
 
+// Request for getting resource usage.
+message ResourceUsageRequest {}
+
+// Representation of resource usage for a single node.
+message ResourceUsage {
+  string nodeName   = 1;
+  int32 cpuPercent  = 2;
+  int32 memPercent  = 3;
+}
+
+// Response containing a list of resource usages.
+message ResourceUsageResponse {
+  repeated ResourceUsage usages = 1;
+}
+
 // The Scheduler service describes the RPC methods for managing tasks.
 service Scheduler {
   rpc SubmitTask(SubmitTaskRequest) returns (SubmitTaskResponse);
   rpc GetTaskStatus(TaskStatusRequest) returns (TaskStatusResponse);
   rpc ListTasks(TaskListRequest) returns (TaskListResponse);
+  rpc GetResourceUsage(ResourceUsageRequest) returns (ResourceUsageResponse);
 }
