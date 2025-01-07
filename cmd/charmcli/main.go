@@ -15,7 +15,7 @@ import (
 
 func main() {
 	// Connect to gRPC server.
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		"localhost:50051",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
