@@ -65,7 +65,7 @@ func initialModel(client pb.SchedulerClient) model {
 	ti1.Placeholder = "Enter Task ID"
 	ti1.CharLimit = 32
 	ti1.Width = 30
-	ti1.Focus() // by default, set the first input as focused
+	ti1.Focus() // By default, set the first input as focused
 
 	// Priority field.
 	ti2 := textinput.New()
@@ -83,6 +83,21 @@ func initialModel(client pb.SchedulerClient) model {
 func (m model) Init() tea.Cmd {
 	// Start the cursor blinking in whichever field is focused.
 	return textinput.Blink
+}
+
+// --- A helper method to reset fields ---
+// ADDED: This function clears old text input and resets the submission state.
+func (m *model) resetSubmission() {
+	for i := range m.inputs {
+		m.inputs[i].SetValue("")
+		m.inputs[i].Blur()
+	}
+	m.inputs[0].Focus() // Reset focus back to the first input
+
+	m.focusIndex = 0
+	m.submitted = false
+	m.status = ""
+	m.err = nil
 }
 
 // --- Update ---
@@ -103,10 +118,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// This frees up the Tab key for switching between input fields.
 		case "tab":
 			if m.activeTab == tabSubmit {
+				// ADDED: Reset submission info before switching to Jobs
+				mPtr := &m
+				mPtr.resetSubmission()
+
 				m.activeTab = tabJobs
 				// Fetch tasks when switching to the Jobs tab.
 				return m, fetchTasksCmd(m.client)
 			} else {
+				// ADDED: Also reset tasks or submission state when going back to Submit if desired
+				mPtr := &m
+				mPtr.resetSubmission()
+
 				m.activeTab = tabSubmit
 			}
 
@@ -255,7 +278,7 @@ func (m model) View() string {
 				m.status,
 			)
 			s += "Press Enter on the second field to refresh status or 'q' to quit.\n"
-			// If you want to keep displaying the input fields, you can show them, but not repeated messages:
+			// Optionally still show the inputs:
 			s += "\nTask ID: " + m.inputs[0].View() + "\n\n"
 			s += "Priority: " + m.inputs[1].View() + "\n"
 		}
@@ -362,7 +385,7 @@ func checkStatusCmd(m model) tea.Cmd {
 // --- Main ---
 
 func main() {
-	// Connect to gRPC server (insecure for demonstration).
+	// ADDED: Use grpc.Dial instead of grpc.NewClient
 	conn, err := grpc.NewClient(
 		"localhost:50051",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -375,8 +398,11 @@ func main() {
 	// Create the Scheduler client.
 	client := pb.NewSchedulerClient(conn)
 
-	// Initialize the Bubble Tea program with our model.
-	p := tea.NewProgram(initialModel(client))
+	p := tea.NewProgram(
+		initialModel(client),
+		tea.WithAltScreen(),       // Enable alternate screen mode
+		tea.WithMouseCellMotion(), // Optionally enable mouse or other features
+	)
 
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error running Charm CLI:", err)
