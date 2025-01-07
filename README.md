@@ -2,6 +2,20 @@
 
 A lightweight, distributed task scheduler built in Go for running prioritized jobs across multiple nodes in a Kubernetes cluster. This project provides an open-source, scalable alternative to proprietary task scheduling tools.
 
+1. Splitting a Single Task Across Multiple Nodes
+example:
+
+
+2. Sending Batches of Tasks to Available Nodes
+example:
+
+--- 
+
+Roadmap
+
+https://miro.com/app/board/uXjVLw2tOPU=/?share_link_id=323582765789 
+
+
 ---
 
 ## **Features**
@@ -25,7 +39,7 @@ A lightweight, distributed task scheduler built in Go for running prioritized jo
 - **Communication Protocol**: gRPC
 - **Containerization**: Docker
 - **Orchestration**: Kubernetes
-- **Monitoring**: Web-based frontend or CLI for observability
+- **Monitoring**: CLI for observability
 
 ---
 
