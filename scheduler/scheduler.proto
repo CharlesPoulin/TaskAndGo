@@ -14,6 +14,24 @@ message Task {
   int32 progress  = 6;   // Percentage progress of the task (0-100)
 }
 
+// New message representing a subtask.
+message SubTask {
+  string subtask_id     = 1;
+  string parent_task_id = 2;
+  string data           = 3;
+  // Additional fields: priority, status, progress for the subtask could be added here.
+}
+
+// Request and response messages for submitting a subtask.
+message SubmitSubTaskRequest {
+  SubTask subtask = 1;
+}
+
+message SubmitSubTaskResponse {
+  bool success = 1;
+  string message = 2;
+}
+
 // The SubmitTaskRequest encapsulates the Task object.
 message SubmitTaskRequest {
   Task task = 1;
@@ -45,6 +63,25 @@ message TaskListResponse {
   repeated Task tasks = 1;
 }
 
+message RegisterNodeRequest {
+
+  string node_id = 1;
+
+  string capacity = 2;
+
+}
+
+
+
+message RegisterNodeResponse {
+
+  bool success = 1;
+
+  string message = 2;
+
+}
+
+
 // Request for getting resource usage.
 message ResourceUsageRequest {}
 
@@ -63,6 +100,7 @@ message ResourceUsageResponse {
 // The Scheduler service describes the RPC methods for managing tasks.
 service Scheduler {
   rpc SubmitTask(SubmitTaskRequest) returns (SubmitTaskResponse);
+  rpc SubmitSubTask(SubmitSubTaskRequest) returns (SubmitSubTaskResponse); // New RPC for subtasks
   rpc GetTaskStatus(TaskStatusRequest) returns (TaskStatusResponse);
   rpc ListTasks(TaskListRequest) returns (TaskListResponse);
   rpc GetResourceUsage(ResourceUsageRequest) returns (ResourceUsageResponse);

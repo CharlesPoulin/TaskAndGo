@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	Scheduler_SubmitTask_FullMethodName       = "/scheduler.Scheduler/SubmitTask"
+	Scheduler_SubmitSubTask_FullMethodName    = "/scheduler.Scheduler/SubmitSubTask"
 	Scheduler_GetTaskStatus_FullMethodName    = "/scheduler.Scheduler/GetTaskStatus"
 	Scheduler_ListTasks_FullMethodName        = "/scheduler.Scheduler/ListTasks"
 	Scheduler_GetResourceUsage_FullMethodName = "/scheduler.Scheduler/GetResourceUsage"
@@ -32,6 +33,7 @@ const (
 // The Scheduler service describes the RPC methods for managing tasks.
 type SchedulerClient interface {
 	SubmitTask(ctx context.Context, in *SubmitTaskRequest, opts ...grpc.CallOption) (*SubmitTaskResponse, error)
+	SubmitSubTask(ctx context.Context, in *SubmitSubTaskRequest, opts ...grpc.CallOption) (*SubmitSubTaskResponse, error)
 	GetTaskStatus(ctx context.Context, in *TaskStatusRequest, opts ...grpc.CallOption) (*TaskStatusResponse, error)
 	ListTasks(ctx context.Context, in *TaskListRequest, opts ...grpc.CallOption) (*TaskListResponse, error)
 	GetResourceUsage(ctx context.Context, in *ResourceUsageRequest, opts ...grpc.CallOption) (*ResourceUsageResponse, error)
@@ -49,6 +51,16 @@ func (c *schedulerClient) SubmitTask(ctx context.Context, in *SubmitTaskRequest,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SubmitTaskResponse)
 	err := c.cc.Invoke(ctx, Scheduler_SubmitTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *schedulerClient) SubmitSubTask(ctx context.Context, in *SubmitSubTaskRequest, opts ...grpc.CallOption) (*SubmitSubTaskResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SubmitSubTaskResponse)
+	err := c.cc.Invoke(ctx, Scheduler_SubmitSubTask_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +104,7 @@ func (c *schedulerClient) GetResourceUsage(ctx context.Context, in *ResourceUsag
 // The Scheduler service describes the RPC methods for managing tasks.
 type SchedulerServer interface {
 	SubmitTask(context.Context, *SubmitTaskRequest) (*SubmitTaskResponse, error)
+	SubmitSubTask(context.Context, *SubmitSubTaskRequest) (*SubmitSubTaskResponse, error)
 	GetTaskStatus(context.Context, *TaskStatusRequest) (*TaskStatusResponse, error)
 	ListTasks(context.Context, *TaskListRequest) (*TaskListResponse, error)
 	GetResourceUsage(context.Context, *ResourceUsageRequest) (*ResourceUsageResponse, error)
@@ -107,6 +120,9 @@ type UnimplementedSchedulerServer struct{}
 
 func (UnimplementedSchedulerServer) SubmitTask(context.Context, *SubmitTaskRequest) (*SubmitTaskResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitTask not implemented")
+}
+func (UnimplementedSchedulerServer) SubmitSubTask(context.Context, *SubmitSubTaskRequest) (*SubmitSubTaskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitSubTask not implemented")
 }
 func (UnimplementedSchedulerServer) GetTaskStatus(context.Context, *TaskStatusRequest) (*TaskStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTaskStatus not implemented")
@@ -152,6 +168,24 @@ func _Scheduler_SubmitTask_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SchedulerServer).SubmitTask(ctx, req.(*SubmitTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Scheduler_SubmitSubTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitSubTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SchedulerServer).SubmitSubTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Scheduler_SubmitSubTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SchedulerServer).SubmitSubTask(ctx, req.(*SubmitSubTaskRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -220,6 +254,10 @@ var Scheduler_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SubmitTask",
 			Handler:    _Scheduler_SubmitTask_Handler,
+		},
+		{
+			MethodName: "SubmitSubTask",
+			Handler:    _Scheduler_SubmitSubTask_Handler,
 		},
 		{
 			MethodName: "GetTaskStatus",

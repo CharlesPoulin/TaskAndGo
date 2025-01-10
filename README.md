@@ -67,3 +67,27 @@ You can submit tasks to the scheduler via CLI or API using a `POST` request. Rep
 curl -X POST http://<scheduler-node-ip>:<port>/submit-task \
 -d '{"task_id": "123", "priority": "high", "data": "task details"}'
 
+# TaskAndGo Scheduler
+
+This project implements a gRPC-based task scheduler that can distribute tasks among nodes in different ways. The scheduler supports two primary “scheduling strategies”:
+
+1. **Split Strategy** – Splits a single task into parallel chunks across multiple nodes (useful for big, parallelizable tasks).
+2. **Batch Strategy** – Sends entire tasks to one node at a time for simpler “batch” processing.
+
+## Architecture
+
+- **scheduler/strategy.go** – Contains the `SchedulingStrategy` interface and two concrete strategies:
+  - `SplitStrategy`
+  - `BatchStrategy`
+- **scheduler/scheduler_server.go** – Defines the `SchedulerServer` gRPC service implementation.  
+  It uses a `TaskStore` (in-memory) to track tasks and a `SchedulingStrategy` to decide how those tasks are dispatched.
+- **cmd/server/main.go** – The entry point for running the gRPC server. You can set an environment variable (`SCHEDULER_STRATEGY=batch` or `SCHEDULER_STRATEGY=split`) to choose which strategy the server will use at runtime.
+
+## Running the Server
+
+```bash
+# Default: uses split strategy
+go run cmd/server/main.go
+
+# Force batch strategy
+SCHEDULER_STRATEGY=batch go run cmd/server/main.go
