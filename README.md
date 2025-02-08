@@ -25,7 +25,7 @@ A lightweight, distributed task scheduler built in Go for running prioritized jo
 - **Communication Protocol**: gRPC
 - **Containerization**: Docker
 - **Orchestration**: Kubernetes
-- **Monitoring**: Web-based frontend or CLI for observability
+- **Monitoring**: CLI for observability
 
 ---
 
@@ -53,3 +53,4 @@ You can submit tasks to the scheduler via CLI or API using a `POST` request. Rep
 curl -X POST http://<scheduler-node-ip>:<port>/submit-task \
 -d '{"task_id": "123", "priority": "high", "data": "task details"}'
 
+Todo: Understand Kubernetes and pods/tasks.
