@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
 	// The proto package is "github.com/charl/TaskAndGo/scheduler"
 	pb "github.com/charl/TaskAndGo/scheduler"
@@ -42,6 +43,8 @@ func main() {
 	// 5) Create & register a gRPC server
 	grpcServer := grpc.NewServer()
 	pb.RegisterSchedulerServer(grpcServer, svc)
+
+	reflection.Register(grpcServer)
 
 	fmt.Printf("Server started with strategy: %T on port 50051\n", chosenStrategy)
 

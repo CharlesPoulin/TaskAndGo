@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskandgo-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskandgo
+  template:
+    metadata:
+      labels:
+        app: taskandgo
+    spec:
+      containers:
+      - name: taskandgo-container
+
+        image: cpoulin/taskandgo:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 50051
+        # You can set environment variables here, e.g. choosing a strategy
+        env:
+        - name: SCHEDULER_STRATEGY
+          value: "batch"   # or "split"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskandgo-service
+spec:
+  selector:
+    app: taskandgo
+  ports:
+    - protocol: TCP
+      port: 50051    # The port exposed in the cluster
+      targetPort: 50051  # The containerPort from the deployment
+      # optionally specify nodePort if you want type: NodePort
+  type: ClusterIP
